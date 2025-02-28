@@ -15,25 +15,23 @@ AsyncServer::AsyncServer(boost::asio::io_context& io, unsigned short port)
         throw; // 重新抛出异常，避免静默失败
     }
 }
+
 void AsyncServer::start() {
-    std::cout<<"1";
     std::cout << "Server started on port " << acceptor_.local_endpoint().port() << std::endl;
 }
 
 void AsyncServer::start_accept() {
     std::cout << "Waiting for new connections..." << std::endl;
     auto socket = std::make_shared<tcp::socket>(io_);
-    std::cout << "123" << std::endl; // 确保此行被执行
-
     acceptor_.async_accept(*socket, 
-        [this, socket = std::move(socket)](const boost::system::error_code& error) {
+        [this, socket](const boost::system::error_code& error) {
             handle_accept(socket, error);
         });
 }
 
 void AsyncServer::handle_accept(std::shared_ptr<boost::asio::ip::tcp::socket> socket,
                                 const boost::system::error_code &error)
-{   
+{
     if (!error)
     {
         std::cout << "New connection from " << socket->remote_endpoint() << std::endl;
@@ -51,7 +49,6 @@ void AsyncServer::start_read(std::shared_ptr<boost::asio::ip::tcp::socket> socke
     auto buffer = std::make_shared<std::array<char, 1024>>();
     socket->async_read_some(boost::asio::buffer(*buffer),
         [this, socket, buffer](const boost::system::error_code& error, size_t length) {
-            std::cout << "Read handler invoked." << std::endl; // 添加调试信息
             handle_read(socket, buffer, error, length);
         });
 }
@@ -65,6 +62,10 @@ void AsyncServer::handle_read(std::shared_ptr<boost::asio::ip::tcp::socket> sock
     if (!error)
     {
         std::cout << "Processing received data..." << std::endl;
+        std::cout << "Raw data: ";
+        for (size_t i = 0; i < length; ++i) {
+            printf("%02X ", static_cast<unsigned char>(buffer->data()[i]));
+        }
         // 使用协议解析模块处理数据
         auto msg = ProtocolParser::parse(reinterpret_cast<const uint8_t*>(buffer->data()), length);
         if (msg)
